@@ -11,6 +11,6 @@ import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator;
  * @author Lance
  */
 public interface XsdEvent {
-  ImmutableDiagnosticLocator getLocator();
+  ImmutableDiagnosticLocator locator();
   void pushTo(XsdContract contract);
 }
