@@ -20,16 +20,20 @@
 
 */package org.gtri.util.xsdbuilder.impl
 
+import elements.{XsdDocumentation, XsdAnnotation, XsdSchema}
 import org.gtri.util.xmlbuilder.api.XmlEvent
 import org.gtri.util.iteratee.api._
+import org.gtri.util.iteratee.api.Issues._
+import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator._
 import org.gtri.util.xsdbuilder.api.{XsdConstants, XsdEvent}
 import org.gtri.util.iteratee.impl.Iteratees._
-import org.gtri.util.iteratee.impl.Iteratees.unbuffered._
-import org.gtri.util.xmlbuilder.impl.{XmlElement, AddXmlElementEvent}
-import org.gtri.util.xsddatatypes.{XsdQName, XsdAnyURI, XsdToken}
-import org.gtri.util.xsdbuilder.api.XsdConstants.{ATTRIBUTES, ELEMENTS}
-import org.gtri.util.iteratee.impl.{OptIssueWriter => Box }
-import org.gtri.util.iteratee.impl.Issues.RecoverableError
+import org.gtri.util.iteratee.impl.ImmutableBufferConversions._
+import org.gtri.util.xmlbuilder.impl.{XmlElement, EndXmlElementEvent, AddXmlElementEvent}
+import org.gtri.util.iteratee.impl.Iteratees.Result
+import org.gtri.util.iteratee.box._
+import org.gtri.util.iteratee.box.Ops._
+import org.gtri.util.iteratee.impl.Iteratees._
+import org.gtri.util.xsddatatypes.XsdQName
 
 /**
  * Created with IntelliJ IDEA.
@@ -39,58 +43,80 @@ import org.gtri.util.iteratee.impl.Issues.RecoverableError
  * To change this template use File | Settings | File Templates.
  */
 class XmlToXsdParser(implicit val issueHandlingCode : IssueHandlingCode) extends Iteratee[XmlEvent, XsdEvent]{
-  def initialState() = DocRootParser()
+  def initialState = DocRootParser()
 
-  abstract class Parser extends BaseCont[XmlEvent,XsdEvent]
+  type Parser = SingleItemCont[XmlEvent,XsdEvent]
+  type ParserResult = Iteratee.State.Result[XmlEvent,XsdEvent]
+
+  def guardUnexpectedXmlEvent(parser : Parser) : PartialFunction[XmlEvent,ParserResult] = {
+    case ev : XmlEvent =>
+      val error = inputRecoverableError("Unexpected '" + ev + "'", ev.locator)
+      if(issueHandlingCode.canContinue(error)) {
+        val warn = inputWarning("Ignoring unexpected '" + ev + "'", ev.locator)
+        Result(
+          next = parser,
+          issues =  Chunk(warn,error)
+        )
+      } else {
+        Failure(issues = Chunk(error))
+      }
+  }
+
+  def parseDocumentationEvent(parser : Parser) : PartialFunction[XmlEvent,ParserResult] = {
+    case ev@AddXmlElementEvent(element, locator) if element.qName == XsdConstants.ELEMENTS.DOCUMENTATION.QNAME =>
+      val eventBox =
+        for(documentation<- XsdDocumentation.parse(element, locator))
+        yield (AddXsdDocumentationEvent(documentation,locator), XsdDocumentationParser(documentation, parser))
+      eventBox.toResult
+  }
+
+  def parseEndDocumentationEvent(annotation : XsdDocumentation,parent : Parser) : PartialFunction[XmlEvent,ParserResult] = {
+    case ev@EndXmlElementEvent(qName, locator) if qName == XsdConstants.ELEMENTS.ANNOTATION.QNAME =>
+      Result(
+        next = parent,
+        output = Chunk(EndXsdDocumentationEvent(annotation, locator))
+      )
+  }
+
   case class DocRootParser() extends Parser {
 
-    def apply(event : XmlEvent) = {
-      event match {
-        case AddXmlElementEvent(element, locator) if element.qName == XsdConstants.ELEMENTS.SCHEMA.QNAME =>
-          val schemaBox = parse(element)
-          Result(
-            next = XsdSchemaParser(this),
-            output = Chunk(AddXsdSchemaEvent(schemaBox.item.get, locator)),
-            issues = schemaBox.issues
-          )
-      }
-    }
+    private val doApply = (
+      AddXsdSchemaEvent.partialParser(this, ifSuccess = { schema => XsdSchemaParser(schema, this) })
+      orElse guardUnexpectedXmlEvent(this)
+    )
+
+    def apply(event : XmlEvent) = doApply(event)
 
     def endOfInput() = Success()
   }
 
-  case class XsdSchemaParser(parent : Parser) extends Parser {
-    def apply(input : XmlEvent) = throw new RuntimeException("")
+  abstract class BaseXsdParser(parent : Parser, qName : XsdQName) extends Parser {
+    val doApply : PartialFunction[XmlEvent,ParserResult]
 
-    def endOfInput() = Failure()
+    def apply(event : XmlEvent) = doApply(event)
+
+    def endOfInput() = Failure(issues = Chunk(inputFatalError("Expected </" + qName + ">",nowhere)))
   }
 
-
-  def parseToken(s : String) : Box[XsdToken] = Box.tryApply(new XsdToken(s))
-  def parseURI(s: String) : Box[XsdAnyURI] = Box.tryApply(XsdAnyURI.parseString(s))
-
-  def parseRequiredAttribute[U](element : XmlElement, qName : XsdQName, parser: String => Box[U], default : => U) : Box[U] = {
-    element.attributes.get(qName) match {
-      case Some(s) => parser(s)
-      case None => Box(default) << RecoverableError(new MissingRequiredAttributeException(qName))
-    }
-  }
-
-  def randomString = java.lang.Long.toHexString(java.lang.Double.doubleToLongBits(java.lang.Math.random()))
-  def genRandomURN = new XsdAnyURI(new StringBuilder().append("urn:").append(randomString).append(":").append(randomString).toString())
-
-  def parse(element : XmlElement) : Box[XsdSchema] = {
-    require(element.qName == ELEMENTS.SCHEMA.QNAME)
-
-    for (
-      targetNamespace <- parseRequiredAttribute(element, ATTRIBUTES.TARGETNAMESPACE.QNAME,parseURI, genRandomURN);
-      version <- parseRequiredAttribute(element, ATTRIBUTES.VERSION.QNAME, parseToken, new XsdToken("1"))
+  case class XsdSchemaParser(schema : XsdSchema, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.SCHEMA.QNAME) {
+    val doApply = (
+      AddXsdAnnotationEvent.partialParser(this, ifSuccess = { annotation => XsdAnnotationParser(annotation, this) })
+      orElse EndXsdSchemaEvent.partialParser(schema, parent)
+      orElse guardUnexpectedXmlEvent(this)
     )
-    yield
-      new XsdSchema(
-        targetNamespace = targetNamespace,
-        version = version,
-        prefixToNamespaceURIMap = element.prefixToNamespaceURIMap
+  }
+
+  case class XsdAnnotationParser(annotation : XsdAnnotation, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.ANNOTATION.QNAME) {
+    val doApply = (
+      parseEndAnnotationEvent(annotation, parent)
+      orElse guardUnexpectedXmlEvent(this)
+    )
+  }
+
+  case class XsdDocumentationParser(documentation : XsdDocumentation, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.DOCUMENTATION.QNAME) {
+    val doApply = (
+        parseEndDocumentationEvent(documentation, parent)
+        orElse guardUnexpectedXmlEvent(this)
       )
   }
 }

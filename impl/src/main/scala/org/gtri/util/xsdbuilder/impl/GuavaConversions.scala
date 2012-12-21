@@ -10,6 +10,8 @@ import com.google.common.collect.{ImmutableList, ImmutableMap, ImmutableSet}
  * To change this template use File | Settings | File Templates.
  */
 object GuavaConversions {
+  import scala.language.implicitConversions
+
   implicit def setToGuavaImmutableSet[A](set : Set[A]) : ImmutableSet[A] = {
     if(set.isEmpty) {
       ImmutableSet.of()

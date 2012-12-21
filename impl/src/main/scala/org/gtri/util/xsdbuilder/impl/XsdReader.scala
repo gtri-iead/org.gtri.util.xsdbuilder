@@ -20,6 +20,14 @@
 
 */package org.gtri.util.xsdbuilder.impl
 
+import org.gtri.util.xmlbuilder.api.XmlFactory.XMLStreamReaderFactory
+import org.gtri.util.iteratee.api._
+import org.gtri.util.xmlbuilder.api.XmlEvent
+import org.gtri.util.xsdbuilder.api.XsdEvent
+import org.gtri.util.xmlbuilder.impl.XmlReader
+import org.gtri.util.iteratee.IterateeFactory
+
+
 /**
  * Created with IntelliJ IDEA.
  * User: Lance
@@ -27,6 +35,12 @@
  * Time: 7:44 AM
  * To change this template use File | Settings | File Templates.
  */
-class XsdReader {
-
+class XsdReader(factory : XMLStreamReaderFactory, issueHandlingCode : IssueHandlingCode = IssueHandlingCode.NORMAL,val chunkSize : Int = 256) extends Enumerator[XsdEvent] {
+  def initialState() = {
+    val iterateeFactory = new IterateeFactory(issueHandlingCode)
+    val xmlReader = new XmlReader(factory, chunkSize)
+    val xmlToXsdParser = new XmlToXsdParser()(issueHandlingCode)
+    val plan = iterateeFactory.createPlan(xmlReader, xmlToXsdParser)
+    plan.initialState
+  }
 }
