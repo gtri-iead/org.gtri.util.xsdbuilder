@@ -3,10 +3,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.gtri.util</groupId>
-  <artifactId>xsdbuilder.main</artifactId>
+  <artifactId>xsdbuilder.main_2.10</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
-  <name>xsdbuilder.main</name>
+  <name>xsdbuilder.main_2.10</name>
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
