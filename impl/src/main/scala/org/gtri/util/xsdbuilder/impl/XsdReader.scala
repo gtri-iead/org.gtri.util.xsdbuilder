@@ -23,7 +23,7 @@
 import org.gtri.util.xmlbuilder.api.XmlFactory.XMLStreamReaderFactory
 import org.gtri.util.iteratee.api._
 import org.gtri.util.xmlbuilder.api.XmlEvent
-import org.gtri.util.xsdbuilder.api.XsdEvent
+import org.gtri.util.xsdbuilder.api
 import org.gtri.util.xmlbuilder.impl.XmlReader
 import org.gtri.util.iteratee.IterateeFactory
 
@@ -35,11 +35,11 @@ import org.gtri.util.iteratee.IterateeFactory
  * Time: 7:44 AM
  * To change this template use File | Settings | File Templates.
  */
-class XsdReader(factory : XMLStreamReaderFactory, issueHandlingCode : IssueHandlingCode = IssueHandlingCode.NORMAL,val chunkSize : Int = 256) extends Enumerator[XsdEvent] {
+class XsdReader(factory : XMLStreamReaderFactory, issueHandlingCode : IssueHandlingCode = IssueHandlingCode.NORMAL,val chunkSize : Int = 256) extends Enumerator[api.XsdEvent] {
   def initialState() = {
     val iterateeFactory = new IterateeFactory(issueHandlingCode)
-    val xmlReader = new XmlReader(factory, chunkSize)
-    val xmlToXsdParser = new XmlToXsdParser()(issueHandlingCode)
+    val xmlReader = new XmlReader(factory, issueHandlingCode, chunkSize)
+    val xmlToXsdParser = new XmlToXsdParser(issueHandlingCode)
     val plan = iterateeFactory.createPlan(xmlReader, xmlToXsdParser)
     plan.initialState
   }

@@ -21,6 +21,12 @@
 */
 package org.gtri.util.xsdbuilder.impl
 
+import org.gtri.util.iteratee.api.{IssueHandlingCode, Iteratee}
+import org.gtri.util.xsdbuilder.api
+import org.gtri.util.iteratee.IterateeFactory
+import org.gtri.util.xmlbuilder.impl.XmlWriter
+import org.gtri.util.xmlbuilder.api.XmlFactory.XMLStreamWriterFactory
+
 /**
  * Created with IntelliJ IDEA.
  * User: Lance
@@ -28,6 +34,12 @@ package org.gtri.util.xsdbuilder.impl
  * Time: 7:44 AM
  * To change this template use File | Settings | File Templates.
  */
-class XsdWriter {
-
+class XsdWriter(factory : XMLStreamWriterFactory, issueHandlingCode : IssueHandlingCode = IssueHandlingCode.NORMAL) extends Iteratee[api.XsdEvent, Unit] {
+  def initialState() = {
+    val iterateeFactory = new IterateeFactory(issueHandlingCode)
+    val xmlWriter = new XmlWriter(factory)
+    val generator = new XsdToXmlGenerator(issueHandlingCode)
+    val i = iterateeFactory.compose(generator, xmlWriter)
+    i.initialState()
+  }
 }

@@ -21,15 +21,22 @@
 */
 package org.gtri.util.xsdbuilder.impl
 
+import elements._
 import org.gtri.util.iteratee.api.{Iteratee, IssueHandlingCode}
 import org.gtri.util.xmlbuilder.api.XmlEvent
-import org.gtri.util.xsdbuilder.api.{XsdConstants, XsdEvent}
+import org.gtri.util.xsdbuilder.api.{XsdConstants}
+import org.gtri.util.xsdbuilder.api
 import org.gtri.util.iteratee.impl.Iteratees._
 import org.gtri.util.iteratee.api.Issues._
-import org.gtri.util.xmlbuilder.impl.{EndXmlElementEvent, AddXmlElementEvent}
+import org.gtri.util.xmlbuilder.impl._
 import org.gtri.util.iteratee.impl.ImmutableBufferConversions._
 import org.gtri.util.xsddatatypes.XsdQName
 import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator._
+import org.gtri.util.iteratee.impl.Iteratees
+import org.gtri.util.iteratee.impl.Iteratees.Failure
+import org.gtri.util.xmlbuilder.impl.AddXmlElementEvent
+import org.gtri.util.xmlbuilder.impl.EndXmlElementEvent
+import org.gtri.util.iteratee.impl.Iteratees.Result
 
 /**
  * Created with IntelliJ IDEA.
@@ -38,14 +45,16 @@ import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator._
  * Time: 7:44 AM
  * To change this template use File | Settings | File Templates.
  */
-class XsdToXmlGenerator(implicit val issueHandlingCode : IssueHandlingCode) extends Iteratee[XsdEvent, XmlEvent]{
-  def initialState = DocRootGenerator()
+class XsdToXmlGenerator(val issueHandlingCode : IssueHandlingCode) extends Iteratee[api.XsdEvent, XmlEvent]{
+  implicit val IHC = issueHandlingCode
 
-  type Generator = SingleItemCont[XsdEvent,XmlEvent]
-  type GeneratorResult = Iteratee.State.Result[XsdEvent,XmlEvent]
+  def initialState = NoContextGenerator()
 
-  def guardUnexpectedXsdEvent(generator : Generator) : PartialFunction[XsdEvent,GeneratorResult] = {
-    case ev : XsdEvent =>
+  type Generator = SingleItemCont[api.XsdEvent,XmlEvent]
+  type GeneratorResult = Iteratee.State.Result[api.XsdEvent,XmlEvent]
+
+  def guardUnexpectedXsdEvent(generator : Generator) : PartialFunction[api.XsdEvent,GeneratorResult] = {
+    case ev : api.XsdEvent =>
       val error = inputRecoverableError("Unexpected '" + ev + "'", ev.locator)
       if(issueHandlingCode.canContinue(error)) {
         val warn = inputWarning("Ignoring unexpected '" + ev + "'", ev.locator)
@@ -58,49 +67,113 @@ class XsdToXmlGenerator(implicit val issueHandlingCode : IssueHandlingCode) exte
       }
   }
 
-  def genAddSchemaEvent(generator: Generator) : PartialFunction[XsdEvent,GeneratorResult] = {
-    case ev@AddXsdSchemaEvent(schema, locator) =>
+  def createAddEventGenerator[E <: XsdElement](next: Iteratee.State[api.XsdEvent,XmlEvent])(implicit util : XsdElementCompanionObject[E]) =
+    new PartialFunction[api.XsdEvent, Iteratee.State.Result[api.XsdEvent,XmlEvent]] {
+
+      def apply(input: api.XsdEvent) = {
+        val event = AddXsdEvent.parse(input).get
+        Result[api.XsdEvent, XmlEvent](
+          next = next,
+          output = Chunk(AddXmlElementEvent(event.element.toXmlElement, event.locator))
+        )
+      }
+
+
+      def isDefinedAt(input: api.XsdEvent) = AddXsdEvent.parse(input).isDefined
+    }
+
+  def createEndEventGenerator[E <: XsdElement](next: Iteratee.State[api.XsdEvent,XmlEvent])(implicit util : XsdElementCompanionObject[E]) =
+    new PartialFunction[api.XsdEvent, Iteratee.State.Result[api.XsdEvent,XmlEvent]] {
+
+      def apply(input: api.XsdEvent) = {
+        val event = EndXsdEvent.parse(input).get
+        Result(
+          next = next,
+          output = Chunk(EndXmlElementEvent(util.qName, event.locator))
+        )
+      }
+      def isDefinedAt(input: api.XsdEvent) = EndXsdEvent.parse(input).isDefined
+    }
+
+  def parseStartDocumentEvent(next : Iteratee.State[api.XsdEvent,XmlEvent]) : PartialFunction[api.XsdEvent, Iteratee.State.Result[api.XsdEvent,XmlEvent]] = {
+    case StartXsdDocumentEvent(encoding, version, isStandAlone, characterEncodingScheme, locator) =>
       Result(
-        next = XsdSchemaGenerator(generator),
-        output = Chunk(AddXmlElementEvent(schema.toXmlElement, locator))
+        next = next,
+        output = Chunk(StartXmlDocumentEvent(encoding, version, isStandAlone, characterEncodingScheme, locator))
       )
   }
 
-  def genEndSchemaEvent(generator: Generator) : PartialFunction[XsdEvent,GeneratorResult] = {
-    case ev@EndXsdSchemaEvent(schema, locator) =>
+  def parseEndDocumentEvent(next : Iteratee.State[api.XsdEvent,XmlEvent]) : PartialFunction[api.XsdEvent, Iteratee.State.Result[api.XsdEvent,XmlEvent]] = {
+    case EndXsdDocumentEvent(locator) =>
       Result(
-        next = generator,
-        output = Chunk(EndXmlElementEvent(XsdConstants.ELEMENTS.SCHEMA.QNAME, locator))
+        next = next,
+        output = Chunk(EndXmlDocumentEvent(locator))
       )
   }
 
-  case class DocRootGenerator() extends Generator {
+  case class NoContextGenerator() extends Generator {
+    println(this)
     private val doApply = (
-        genAddSchemaEvent(this)
+      parseStartDocumentEvent(DocRootGenerator(this))
         orElse guardUnexpectedXsdEvent(this)
       )
 
-    def apply(event : XsdEvent) = doApply(event)
+    def apply(event : api.XsdEvent) = doApply(event)
 
-    def endOfInput() = Success()
+    def endOfInput() = Iteratees.Success()
+  }
+
+  case class DocRootGenerator(parent : Generator) extends Generator {
+    println(this)
+    private val doApply = (
+        createAddEventGenerator[XsdSchema](XsdSchemaGenerator(this))
+        orElse parseEndDocumentEvent(parent)
+        orElse guardUnexpectedXsdEvent(this)
+      )
+
+    def apply(event : api.XsdEvent) = doApply(event)
+
+    def endOfInput() = Failure(issues = Chunk(inputFatalError("Expected EndXsdDocumentEvent",nowhere)))
   }
 
   abstract class BaseGenerator(parent : Generator, qName : XsdQName) extends Generator {
-    val doApply : PartialFunction[XsdEvent,GeneratorResult]
+    val doApply : PartialFunction[api.XsdEvent,GeneratorResult]
 
-    def apply(event : XsdEvent) = doApply(event)
+    def apply(event : api.XsdEvent) = doApply(event)
 
 //    def endOfInput() = InputFailure(issues = Chunk(inputFatalError("Expected " + qName + ">",nowhere)))
   }
 
   case class XsdSchemaGenerator(parent : Generator) extends BaseGenerator(parent, XsdConstants.ELEMENTS.SCHEMA.QNAME) {
+    println(this)
 
     val doApply = (
-      genEndSchemaEvent(this)
+      createAddEventGenerator[XsdAnnotation](XsdAnnotationGenerator(this))
       orElse guardUnexpectedXsdEvent(this)
     )
 
     def endOfInput() = Failure(issues = Chunk(inputFatalError("Expected EndXsdSchemaEvent",nowhere)))
   }
 
+  case class XsdAnnotationGenerator(parent : Generator) extends BaseGenerator(parent, XsdConstants.ELEMENTS.ANNOTATION.QNAME) {
+    println(this)
+    val doApply = (
+      createAddEventGenerator[XsdDocumentation](XsdDocumentationGenerator(this))
+      orElse createEndEventGenerator[XsdAnnotation](parent)
+      orElse guardUnexpectedXsdEvent(this)
+    )
+
+    def endOfInput() = Failure(issues = Chunk(inputFatalError("Expected EndXsdAnnotationEvent",nowhere)))
+  }
+
+  case class XsdDocumentationGenerator(parent : Generator) extends BaseGenerator(parent, XsdConstants.ELEMENTS.ANNOTATION.QNAME) {
+    println(this)
+
+    val doApply = (
+      createEndEventGenerator[XsdDocumentation](parent)
+      orElse guardUnexpectedXsdEvent(this)
+    )
+
+    def endOfInput() = Failure(issues = Chunk(inputFatalError("Expected EndXsdDocumentationEvent",nowhere)))
+  }
 }
