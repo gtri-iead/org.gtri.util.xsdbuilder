@@ -96,14 +96,14 @@ object XsdSchema {
 
     def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdSchema] = {
       if(element.qName == ELEMENTS.SCHEMA.QNAME) {
-        val boxId = parseOptionalAttribute(element, locator, ATTRIBUTES.ID.QNAME, XsdId.parseString)
-        val boxTargetNamespace = parseRequiredAttribute(element, locator, ATTRIBUTES.TARGETNAMESPACE.QNAME,XsdAnyURI.parseString, genRandomURN)
-        val boxVersion = parseRequiredAttribute(element, locator, ATTRIBUTES.VERSION.QNAME, XsdToken.parseString, new XsdToken("1"))
-        val boxAttributeFormDefault = parseOptionalAttribute(element, locator, ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME, FormChoiceCode.parseString)
-        val boxElementFormDefault = parseOptionalAttribute(element, locator, ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME, FormChoiceCode.parseString)
-        val boxBlockDefaultCodes = parseOptionalAttribute(element, locator, ATTRIBUTES.BLOCKDEFAULT.QNAME, parseAllOrNone(BlockDefaultCode.parseString))
-        val boxFinalDefaultCodes = parseOptionalAttribute(element, locator, ATTRIBUTES.FINALDEFAULT.QNAME, parseAllOrNone(FinalDefaultCode.parseString))
-        val boxXmlLang = parseOptionalAttribute(element, locator, ATTRIBUTES.XML_LANG.QNAME, XsdToken.parseString)
+        val boxId = parseOptionalAttribute(element, ATTRIBUTES.ID.QNAME, XsdId.parseString)
+        val boxTargetNamespace = parseRequiredAttribute(element, ATTRIBUTES.TARGETNAMESPACE.QNAME,XsdAnyURI.parseString, genRandomURN)
+        val boxVersion = parseRequiredAttribute(element, ATTRIBUTES.VERSION.QNAME, XsdToken.parseString, new XsdToken("1"))
+        val boxAttributeFormDefault = parseOptionalAttribute(element, ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME, FormChoiceCode.parseString)
+        val boxElementFormDefault = parseOptionalAttribute(element, ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME, FormChoiceCode.parseString)
+        val boxBlockDefaultCodes = parseOptionalAttribute(element, ATTRIBUTES.BLOCKDEFAULT.QNAME, parseAllOrNone(BlockDefaultCode.parseString))
+        val boxFinalDefaultCodes = parseOptionalAttribute(element, ATTRIBUTES.FINALDEFAULT.QNAME, parseAllOrNone(FinalDefaultCode.parseString))
+        val boxXmlLang = parseOptionalAttribute(element, ATTRIBUTES.XML_LANG.QNAME, XsdToken.parseString)
         for(
           innerId <- boxId;
           innerTargetNamespace <- boxTargetNamespace;
@@ -141,7 +141,7 @@ object XsdSchema {
 
 
   //  def childElements = List(XsdAnnotation)
-    def parse(element: XsdElement) : Option[XsdSchema] = element match {
+    def downcast(element: XsdElement) : Option[XsdSchema] = element match {
       case e : XsdSchema => Some(e)
       case _ => None
     }

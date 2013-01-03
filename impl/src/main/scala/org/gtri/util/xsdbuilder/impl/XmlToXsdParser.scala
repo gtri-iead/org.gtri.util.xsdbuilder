@@ -60,34 +60,36 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
 
   type Parser = SingleItemCont[XmlEvent,api.XsdEvent]
   type ParserResult = Iteratee.State.Result[XmlEvent,api.XsdEvent]
+  type PartialParser = PartialFunction[XmlEvent,ParserResult]
 
-  def guardUnexpectedXmlEvent(parser : Parser) : PartialFunction[XmlEvent,ParserResult] = {
+  def guardUnexpectedXmlEvent(parser : Parser) : PartialParser = {
     case ev : XmlEvent =>
-      val error = inputRecoverableError("Unexpected '" + ev + "'", ev.locator)
+      val loc = reportInputLocation(ev.locator)
+      val error = inputRecoverableError("Unexpected '" + ev + "'")
       if(issueHandlingCode.canContinue(error)) {
-        val warn = inputWarning("Ignoring unexpected '" + ev + "'", ev.locator)
+        val warn = inputWarning("Ignoring unexpected '" + ev + "'")
         Result(
           next = parser,
-          issues =  Chunk(warn,error)
+          issues =  Chunk(loc, warn,error)
         )
       } else {
-        Iteratees.Failure(issues = Chunk(error))
+        Iteratees.Failure(issues = Chunk(loc, error))
       }
   }
 
-  def ignoreWhitespace(parser : Parser) : PartialFunction[XmlEvent,ParserResult] = {
+  def ignoreWhitespace(parser : Parser) : PartialParser = {
     case ev@AddXmlTextEvent(text, locator) if text.matches("\\s+") =>
       Result(
         next = parser
       )
   }
 
-  def createAddEventParser[E <: XsdElement](next: AddXsdEvent[E] => Iteratee.State[XmlEvent,api.XsdEvent])(implicit util : XsdElementCompanionObject[E]) : PartialFunction[XmlEvent, Iteratee.State.Result[XmlEvent,api.XsdEvent]] = {
+  def createAddEventParser[E <: XsdElement](next: AddXsdEvent[E] => Parser)(implicit util : XsdElementCompanionObject[E]) : PartialParser = {
     case add@AddXmlElementEvent(element, locator) if element.qName == util.qName =>
-     AddXsdEvent.parse(element,locator).toResult[XmlEvent, api.XsdEvent](ifGo = next)
+      AddXsdEvent.parse(element,locator).toResult[XmlEvent, api.XsdEvent](ifGo = next)
   }
 
-  def createEndEventParser[E <: XsdElement](e : E, next: EndXsdEvent[E] => Iteratee.State[XmlEvent,api.XsdEvent])(implicit util : XsdElementCompanionObject[E]) : PartialFunction[XmlEvent, Iteratee.State.Result[XmlEvent,api.XsdEvent]] = {
+  def createEndEventParser[E <: XsdElement](e : E, next: EndXsdEvent[E] => Parser)(implicit util : XsdElementCompanionObject[E]) : PartialParser = {
     case end@EndXmlElementEvent(eventQName, locator) if eventQName == util.qName =>
       val endEvent = EndXsdEvent(e,locator)
       Iteratees.Result[XmlEvent, api.XsdEvent](
@@ -96,7 +98,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
       )
   }
 
-  def parseStartDocEvent(next: Iteratee.State[XmlEvent,api.XsdEvent]) : PartialFunction[XmlEvent, Iteratee.State.Result[XmlEvent,api.XsdEvent]] = {
+  def parseStartDocEvent(next: Parser) : PartialParser = {
     case StartXmlDocumentEvent(encoding, version, isStandAlone, characterEncodingScheme, locator) =>
       Iteratees.Result[XmlEvent, api.XsdEvent](
         output = Chunk(StartXsdDocumentEvent(encoding, version, isStandAlone, characterEncodingScheme, locator)),
@@ -104,7 +106,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
       )
   }
 
-  def parseEndDocEvent(next: Iteratee.State[XmlEvent,api.XsdEvent]) : PartialFunction[XmlEvent, Iteratee.State.Result[XmlEvent,api.XsdEvent]] = {
+  def parseEndDocEvent(next: Parser) : PartialParser = {
     case EndXmlDocumentEvent(locator) =>
       Iteratees.Result[XmlEvent, api.XsdEvent](
         output = Chunk(EndXsdDocumentEvent(locator)),
@@ -138,20 +140,20 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
 
     def apply(event : XmlEvent) = doApply(event)
 
-    def endOfInput() = Iteratees.Failure(issues = Chunk(inputFatalError("Expected EndXmlDocumentEvent",nowhere)))
+    def endOfInput() = Iteratees.Failure(issues = Chunk(inputFatalError("Expected EndXmlDocumentEvent")))
   }
 
-  abstract class BaseXsdParser(parent : Parser, qName : XsdQName) extends Parser {
-    val doApply : PartialFunction[XmlEvent,ParserResult]
+  abstract class BaseXsdParser[E <: XsdElement]()(implicit util : XsdElementCompanionObject[E]) extends Parser {
+    val doApply : PartialParser
 
     def apply(event : XmlEvent) = doApply(event)
 
     def element : XsdElement
     
-    def endOfInput() = Iteratees.Failure(issues = Chunk(inputFatalError("Expected </" + qName + ">",nowhere)))
+    def endOfInput() = Iteratees.Failure(issues = Chunk(inputFatalError("Expected </" + util.qName + ">")))
   }
 
-  case class XsdSchemaParser(element : XsdSchema, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.SCHEMA.QNAME) {
+  case class XsdSchemaParser(element : XsdSchema, parent : Parser) extends BaseXsdParser[XsdSchema]() {
     val doApply = (
       createAddEventParser[XsdAnnotation]({ event =>
         XsdAnnotationParser(
@@ -165,7 +167,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
     )
   }
 
-  case class XsdAnnotationParser(element : XsdAnnotation, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.ANNOTATION.QNAME) {
+  case class XsdAnnotationParser(element : XsdAnnotation, parent : Parser) extends BaseXsdParser[XsdAnnotation]() {
     val doApply = (
       createAddEventParser[XsdDocumentation]({ event =>
         XsdDocumentationParser(
@@ -179,7 +181,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
     )
   }
 
-  case class XsdDocumentationParser(element : XsdDocumentation, parent : Parser) extends BaseXsdParser(parent, XsdConstants.ELEMENTS.DOCUMENTATION.QNAME) {
+  case class XsdDocumentationParser(element : XsdDocumentation, parent : Parser) extends BaseXsdParser[XsdDocumentation]() {
     val doApply = (
         createEndEventParser[XsdDocumentation](element, { _ => parent })
         orElse guardUnexpectedXmlEvent(this)

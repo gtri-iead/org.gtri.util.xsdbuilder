@@ -12,9 +12,10 @@ import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator
  * Time: 12:28 PM
  * To change this template use File | Settings | File Templates.
  */
-trait XsdElementCompanionObject[E] {
+trait XsdElementCompanionObject[+E <: XsdElement] {
   def qName : XsdQName
   def parse(element : XmlElement, locator : ImmutableDiagnosticLocator) : Box[E]
-  def parse(element : XsdElement) : Option[E]
+  def downcast(element : XsdElement) : Option[E]
+//  def parseChild[F <: XsdElement](parent : XsdElement, children : Traversable[XsdElement], element : XmlElement, locator : ImmutableDiagnosticLocator) : Box[F]
 //  def childElements : List[XsdElementCompanionObject]
 }

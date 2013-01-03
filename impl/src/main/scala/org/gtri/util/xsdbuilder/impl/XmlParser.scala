@@ -19,11 +19,10 @@ object XmlParser {
 
   private def recoverRequiredAttribute[U](
     validValue : => U,
-    locator : ImmutableDiagnosticLocator,
     qName : XsdQName
   ) : Box[U] = {
     lazy val recoverBox = Box(
-      inputWarning("Set required attribute to a valid value " + qName.toString + "='" + validValue.toString + "'", locator),
+      inputWarning("Set required attribute to a valid value " + qName.toString + "='" + validValue.toString + "'"),
       validValue
     )
     Box.recover(recoverBox)
@@ -31,43 +30,42 @@ object XmlParser {
 
   def parseRequiredAttribute[U](
     element: XmlElement,
-    locator : ImmutableDiagnosticLocator,
     qName : XsdQName,
     parser: String => U,
     validValue : => U
   ) : Box[U] = {
     // Is the attribute set?
     if(element.attributes.contains(qName)) {
-      // Attribute is set - try to parse it
+      // Attribute is set - try to downcast it
       try {
         Box(parser(element.attributes(qName)))
       } catch {
         case e : Exception =>
-          recoverRequiredAttribute(validValue, locator, qName) :++> List(inputRecoverableError(e.getMessage, locator))
+          recoverRequiredAttribute(validValue, qName) :++> List(inputRecoverableError(e.getMessage))
       }
     } else {
       // Attribute is not set
-      recoverRequiredAttribute(validValue, locator, qName) :++> List(inputRecoverableError("Missing required attribute " + qName, locator))
+      recoverRequiredAttribute(validValue, qName) :++> List(inputRecoverableError("Missing required attribute " + qName))
     }
   }
 
-  private def recoverOptionalAttribute[U](locator : ImmutableDiagnosticLocator, qName : XsdQName) : Box[Option[U]] = {
+  private def recoverOptionalAttribute[U](qName : XsdQName) : Box[Option[U]] = {
     lazy val recoverBox = Box(
-      inputWarning("Ignorning optional attribute with invalid value " + qName.toString, locator),
+      inputWarning("Ignorning optional attribute with invalid value " + qName.toString),
       None
     )
     Box.recover(recoverBox)
   }
 
-  def parseOptionalAttribute[U](element: XmlElement, locator : ImmutableDiagnosticLocator,  qName : XsdQName, parser: String => U) : Box[Option[U]] = {
+  def parseOptionalAttribute[U](element: XmlElement, qName : XsdQName, parser: String => U) : Box[Option[U]] = {
     // Attribute set?
     if(element.attributes.contains(qName)) {
-      // Attribute is set - try to parse it
+      // Attribute is set - try to downcast it
       try {
         Box(Some(parser(element.attributes(qName))))
       } catch {
         case e : Exception =>
-          recoverOptionalAttribute(locator, qName) :++> List(inputRecoverableError(e.getMessage, locator))
+          recoverOptionalAttribute(qName) :++> List(inputRecoverableError(e.getMessage))
       }
     } else {
       // Attribute is missing, return an unset value (success)

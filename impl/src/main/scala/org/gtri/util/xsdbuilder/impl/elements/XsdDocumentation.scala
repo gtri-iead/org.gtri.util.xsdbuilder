@@ -56,8 +56,8 @@ object XsdDocumentation {
 
     def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdDocumentation] = {
       if(element.qName == ELEMENTS.DOCUMENTATION.QNAME) {
-        val boxSource = parseOptionalAttribute(element, locator, ATTRIBUTES.SOURCE.QNAME, XsdAnyURI.parseString)
-        val boxXmlLang = parseOptionalAttribute(element, locator, ATTRIBUTES.XML_LANG.QNAME, XsdToken.parseString)
+        val boxSource = parseOptionalAttribute(element, ATTRIBUTES.SOURCE.QNAME, XsdAnyURI.parseString)
+        val boxXmlLang = parseOptionalAttribute(element, ATTRIBUTES.XML_LANG.QNAME, XsdToken.parseString)
         for(
           innerSource <- boxSource;
           innerXmlLang <- boxXmlLang
@@ -78,7 +78,7 @@ object XsdDocumentation {
 
     //  def childElements = Nil
     
-    def parse(element: XsdElement) : Option[XsdDocumentation] = element match {
+    def downcast(element: XsdElement) : Option[XsdDocumentation] = element match {
       case e : XsdDocumentation => Some(e)
       case _ => None
     }

@@ -51,7 +51,7 @@ object XsdAnnotation {
 
     def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdAnnotation] = {
       if (element.qName == ELEMENTS.ANNOTATION.QNAME) {
-        val boxId = parseOptionalAttribute(element, locator, ATTRIBUTES.ID.QNAME, XsdId.parseString)
+        val boxId = parseOptionalAttribute(element, ATTRIBUTES.ID.QNAME, XsdId.parseString)
         for(
           innerId <- boxId
         ) yield for (
@@ -68,7 +68,7 @@ object XsdAnnotation {
 
 
   //  def childElements = List(XsdDocumentation)
-    def parse(element: XsdElement) : Option[XsdAnnotation] = element match {
+    def downcast(element: XsdElement) : Option[XsdAnnotation] = element match {
       case e : XsdAnnotation => Some(e)
       case _ => None
     }

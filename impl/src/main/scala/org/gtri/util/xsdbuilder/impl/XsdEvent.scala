@@ -41,7 +41,7 @@ object AddXsdEvent {
   def parse[E <: XsdElement](event : api.XsdEvent)(implicit util : XsdElementCompanionObject[E]) : Option[AddXsdEvent[E]] = {
     event match {
       case AddXsdEvent(element, locator) =>
-        util.parse(element).map { e => AddXsdEvent(e, locator) }
+        util.downcast(element).map { e => AddXsdEvent(e, locator) }
       case _ => None
     }
   }
@@ -54,7 +54,7 @@ object EndXsdEvent {
   def parse[E <: XsdElement](event : api.XsdEvent)(implicit util : XsdElementCompanionObject[E]) : Option[AddXsdEvent[E]] = {
     event match {
       case EndXsdEvent(element, locator) =>
-        util.parse(element).map { e => AddXsdEvent(e, locator) }
+        util.downcast(element).map { e => AddXsdEvent(e, locator) }
       case _ => None
     }
   }
