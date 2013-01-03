@@ -59,3 +59,7 @@ object EndXsdEvent {
     }
   }
 }
+
+case class AddXsdCommentEvent(comment : String, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+  def pushTo(contract : XsdContract) = contract.addXmlComment(comment)
+}

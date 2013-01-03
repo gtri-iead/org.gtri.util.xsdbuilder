@@ -1,6 +1,6 @@
 package org.gtri.util.xsdbuilder.impl.elements
 
-import org.gtri.util.xsddatatypes.{XsdNCName, XsdAnyURI, XsdId}
+import org.gtri.util.xsddatatypes.{XsdQName, XsdNCName, XsdAnyURI, XsdId}
 import org.gtri.util.iteratee.api._
 import org.gtri.util.iteratee.impl.box._
 import org.gtri.util.xsdbuilder.impl.XmlParser._
@@ -20,17 +20,23 @@ import Scalaz._
  */
 case class XsdAnnotation(
   id : Option[XsdId] = None,
-  prefixToNamespaceURIMap : Map[XsdNCName, XsdAnyURI]
+  prefixes : Seq[(XsdNCName, XsdAnyURI)]
 ) extends XsdElement {
-  def toXmlElement : XmlElement = {
-    val attributes =
-      id.map({ id => (XsdConstants.ATTRIBUTES.SOURCE.QNAME,id.toString)}).toList
 
+  def attributeOrder = None
+
+  def buildAttributes = {
+    id.map({ id => (XsdConstants.ATTRIBUTES.SOURCE.QNAME,id.toString)}).toList
+  }
+
+  def defaultAttributeOrder = XsdAnnotation.util.defaultAttributeOrder
+
+  def toXmlElement : XmlElement = {
     XmlElement(
       qName = XsdConstants.ELEMENTS.ANNOTATION.QNAME,
       value = None,
-      attributes = attributes.toMap,
-      prefixToNamespaceURIMap = prefixToNamespaceURIMap
+      attributes = attributes,
+      prefixes = prefixes
     )
   }
 
@@ -49,6 +55,10 @@ object XsdAnnotation {
 
     def qName = ELEMENTS.ANNOTATION.QNAME
 
+    val DEFAULT_ATTRIBUTE_ORDER : Seq[XsdQName] = Seq(ATTRIBUTES.ID.QNAME)
+
+    def defaultAttributeOrder = DEFAULT_ATTRIBUTE_ORDER
+
     def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdAnnotation] = {
       if (element.qName == ELEMENTS.ANNOTATION.QNAME) {
         val boxId = parseOptionalAttribute(element, ATTRIBUTES.ID.QNAME, XsdId.parseString)
@@ -59,7 +69,7 @@ object XsdAnnotation {
         ) yield
             XsdAnnotation(
               id = id,
-              prefixToNamespaceURIMap = element.prefixToNamespaceURIMap
+              prefixes = element.prefixes
             )
       } else {
         Box.empty

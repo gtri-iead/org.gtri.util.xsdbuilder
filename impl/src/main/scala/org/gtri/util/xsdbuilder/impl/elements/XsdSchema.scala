@@ -31,26 +31,29 @@ case class XsdSchema(
   blockDefaultCodes : Option[Either[AllOrNoneCode, Set[BlockDefaultCode]]] = None,
   finalDefaultCodes : Option[Either[AllOrNoneCode, Set[FinalDefaultCode]]] = None,
   xml_lang : Option[XsdToken] = None,
-  prefixToNamespaceURIMap : Map[XsdNCName, XsdAnyURI]
+  attributeOrder : Option[Seq[XsdQName]],
+  prefixes : Seq[(XsdNCName, XsdAnyURI)]
 ) extends XsdElement {
 
+  def defaultAttributeOrder = XsdSchema.util.defaultAttributeOrder
+
+  def buildAttributes = {
+    id.map({ id => ATTRIBUTES.ID.QNAME -> id.toString}).toList :::
+    List(ATTRIBUTES.VERSION.QNAME -> version.toString) :::
+    List(ATTRIBUTES.TARGETNAMESPACE.QNAME -> targetNamespace.toString) :::
+    attributeFormDefault.map({ attributeFormDefault => ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME -> attributeFormDefault.toString}).toList :::
+    elementFormDefault.map({ elementFormDefault => ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME -> elementFormDefault.toString}).toList :::
+    blockDefaultCodes.map({ blockDefaultCodes => ATTRIBUTES.BLOCKDEFAULT.QNAME -> blockDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
+    finalDefaultCodes.map({ finalDefaultCodes => ATTRIBUTES.FINALDEFAULT.QNAME -> finalDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
+    xml_lang.map({ xml_lang => ATTRIBUTES.XML_LANG.QNAME -> xml_lang.toString}).toList
+  }
+
   def toXmlElement : XmlElement = {
-
-    val attributes =
-      id.map({ id => ATTRIBUTES.ID.QNAME -> id.toString}).toList :::
-      List(ATTRIBUTES.TARGETNAMESPACE.QNAME -> targetNamespace.toString) :::
-      List(ATTRIBUTES.VERSION.QNAME -> version.toString) :::
-      attributeFormDefault.map({ attributeFormDefault => ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME -> attributeFormDefault.toString}).toList :::
-      elementFormDefault.map({ elementFormDefault => ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME -> elementFormDefault.toString}).toList :::
-      blockDefaultCodes.map({ blockDefaultCodes => ATTRIBUTES.BLOCKDEFAULT.QNAME -> blockDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
-      finalDefaultCodes.map({ finalDefaultCodes => ATTRIBUTES.FINALDEFAULT.QNAME -> finalDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
-      xml_lang.map({ xml_lang => ATTRIBUTES.XML_LANG.QNAME -> xml_lang.toString}).toList
-
     XmlElement(
       qName = XsdConstants.ELEMENTS.SCHEMA.QNAME,
       value = None,
-      attributes = attributes.toMap,
-      prefixToNamespaceURIMap = prefixToNamespaceURIMap
+      attributes = attributes,
+      prefixes = prefixes
     )
   }
 
@@ -76,8 +79,22 @@ case class XsdSchema(
 }
 
 object XsdSchema {
+
   implicit object util extends XsdElementCompanionObject[XsdSchema] {
     def qName = ELEMENTS.SCHEMA.QNAME
+
+    val DEFAULT_ATTRIBUTE_ORDERING = Seq(
+      ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME,
+      ATTRIBUTES.BLOCKDEFAULT.QNAME,
+      ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME,
+      ATTRIBUTES.FINALDEFAULT.QNAME,
+      ATTRIBUTES.ID.QNAME,
+      ATTRIBUTES.TARGETNAMESPACE.QNAME,
+      ATTRIBUTES.VERSION.QNAME,
+      ATTRIBUTES.XML_LANG.QNAME
+    )
+
+    def defaultAttributeOrder = DEFAULT_ATTRIBUTE_ORDERING
 
     def randomString = java.lang.Long.toHexString(java.lang.Double.doubleToLongBits(java.lang.Math.random()))
     def genRandomURN = new XsdAnyURI(new StringBuilder().append("urn:").append(randomString).append(":").append(randomString).toString())
@@ -132,13 +149,13 @@ object XsdSchema {
               blockDefaultCodes = blockDefaultCodes,
               finalDefaultCodes = finalDefaultCodes,
               xml_lang = xml_lang,
-              prefixToNamespaceURIMap = element.prefixToNamespaceURIMap
+              attributeOrder = Some(element.attributes.map { _._1 }),
+              prefixes = element.prefixes
             )
       } else {
         Box.empty
       }
     }
-
 
   //  def childElements = List(XsdAnnotation)
     def downcast(element: XsdElement) : Option[XsdSchema] = element match {

@@ -84,6 +84,14 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
       )
   }
 
+  def parseComment(parser : Parser) : PartialParser = {
+    case ev@AddXmlCommentEvent(comment, locator) =>
+      Result(
+        output = Chunk(AddXsdCommentEvent(comment, locator)),
+        next = parser
+      )
+  }
+
   def createAddEventParser[E <: XsdElement](next: AddXsdEvent[E] => Parser)(implicit util : XsdElementCompanionObject[E]) : PartialParser = {
     case add@AddXmlElementEvent(element, locator) if element.qName == util.qName =>
       AddXsdEvent.parse(element,locator).toResult[XmlEvent, api.XsdEvent](ifGo = next)
@@ -135,6 +143,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
         )
       })
       orElse parseEndDocEvent(parent)
+      orElse parseComment(this)
       orElse guardUnexpectedXmlEvent(this)
     )
 
@@ -162,6 +171,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
         )
       })
       orElse createEndEventParser[XsdSchema](element, { _ => parent })
+      orElse parseComment(this)
       orElse ignoreWhitespace(this)
       orElse guardUnexpectedXmlEvent(this)
     )
@@ -176,6 +186,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
         )
       })
       orElse createEndEventParser[XsdAnnotation](element, { _ => parent })
+      orElse parseComment(this)
       orElse ignoreWhitespace(this)
       orElse guardUnexpectedXmlEvent(this)
     )
@@ -184,6 +195,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
   case class XsdDocumentationParser(element : XsdDocumentation, parent : Parser) extends BaseXsdParser[XsdDocumentation]() {
     val doApply = (
         createEndEventParser[XsdDocumentation](element, { _ => parent })
+        orElse parseComment(this)
         orElse guardUnexpectedXmlEvent(this)
       )
   }

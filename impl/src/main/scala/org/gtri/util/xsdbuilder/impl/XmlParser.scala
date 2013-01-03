@@ -35,10 +35,10 @@ object XmlParser {
     validValue : => U
   ) : Box[U] = {
     // Is the attribute set?
-    if(element.attributes.contains(qName)) {
+    if(element.attributesMap.contains(qName)) {
       // Attribute is set - try to downcast it
       try {
-        Box(parser(element.attributes(qName)))
+        Box(parser(element.attributesMap(qName)))
       } catch {
         case e : Exception =>
           recoverRequiredAttribute(validValue, qName) :++> List(inputRecoverableError(e.getMessage))
@@ -59,10 +59,10 @@ object XmlParser {
 
   def parseOptionalAttribute[U](element: XmlElement, qName : XsdQName, parser: String => U) : Box[Option[U]] = {
     // Attribute set?
-    if(element.attributes.contains(qName)) {
+    if(element.attributesMap.contains(qName)) {
       // Attribute is set - try to downcast it
       try {
-        Box(Some(parser(element.attributes(qName))))
+        Box(Some(parser(element.attributesMap(qName))))
       } catch {
         case e : Exception =>
           recoverOptionalAttribute(qName) :++> List(inputRecoverableError(e.getMessage))

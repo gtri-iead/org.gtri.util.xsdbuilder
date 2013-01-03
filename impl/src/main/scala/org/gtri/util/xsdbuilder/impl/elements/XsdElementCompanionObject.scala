@@ -16,6 +16,7 @@ trait XsdElementCompanionObject[+E <: XsdElement] {
   def qName : XsdQName
   def parse(element : XmlElement, locator : ImmutableDiagnosticLocator) : Box[E]
   def downcast(element : XsdElement) : Option[E]
+  def defaultAttributeOrder : Seq[XsdQName]
 //  def parseChild[F <: XsdElement](parent : XsdElement, children : Traversable[XsdElement], element : XmlElement, locator : ImmutableDiagnosticLocator) : Box[F]
 //  def childElements : List[XsdElementCompanionObject]
 }
