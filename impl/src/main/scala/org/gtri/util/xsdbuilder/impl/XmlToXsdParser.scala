@@ -183,6 +183,7 @@ class XmlToXsdParser(val issueHandlingCode : IssueHandlingCode) extends Iteratee
   case class XsdObjectParser(util : XsdObjectUtil[XsdObject], parent : Parser, item : XsdObject, children : Seq[XsdQName] = Seq.empty) extends Parser {
     val doApply : PartialParser = {
       val endEventParser = createEndEventParser[XsdObject](item, { _ => parent })(util)
+//      println("object="+util.qName)
 //      println("allowedChildElements=" + util.allowedChildElements(children))
       val childParsers =
         util.allowedChildElements(children).foldLeft(endEventParser) { (z,qName) =>

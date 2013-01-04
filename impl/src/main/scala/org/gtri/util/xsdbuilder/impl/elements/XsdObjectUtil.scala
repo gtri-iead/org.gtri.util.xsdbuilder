@@ -22,6 +22,7 @@ object XsdObjectUtil {
   val qNameToUtilMap : Map[XsdQName, XsdObjectUtil[XsdObject]] = Map(
     XsdSchema.util.qName -> XsdSchema.util,
     XsdAnnotation.util.qName -> XsdAnnotation.util,
-    XsdDocumentation.util.qName -> XsdDocumentation.util
+    XsdDocumentation.util.qName -> XsdDocumentation.util,
+    XsdAppInfo.util.qName -> XsdAppInfo.util
   )
 }

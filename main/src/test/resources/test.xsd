@@ -13,6 +13,7 @@
    <!-- test comment -->
    
    <xs:annotation>
+      <xs:appinfo source="http://test.org"/>
       <xs:documentation>asdf</xs:documentation>
    </xs:annotation>
 </xs:schema>
