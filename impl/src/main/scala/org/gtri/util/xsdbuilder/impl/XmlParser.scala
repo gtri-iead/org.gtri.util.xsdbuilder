@@ -1,9 +1,8 @@
 package org.gtri.util.xsdbuilder.impl
 
-import org.gtri.util.iteratee.api.{ ImmutableDiagnosticLocator}
 import org.gtri.util.xsddatatypes.XsdQName
-import org.gtri.util.iteratee.impl.box._
 import org.gtri.util.iteratee.api.Issues._
+import org.gtri.util.iteratee.impl.box._
 import org.gtri.util.xmlbuilder.impl.XmlElement
 import scalaz._
 import Scalaz._

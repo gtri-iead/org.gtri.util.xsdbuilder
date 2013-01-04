@@ -65,7 +65,7 @@ object XsdAnnotation {
     }
 
 
-    def allowedChildElements(children: Seq[XsdQName]) = Seq(XsdDocumentation.util.qName, XsdAppInfo.util.qName)
+    def allowedChildElements(children: Seq[XsdObjectUtil[XsdObject]]) = Seq(XsdDocumentation.util, XsdAppInfo.util)
 
     def downcast(element: XsdObject) : Option[XsdAnnotation] = element match {
       case e : XsdAnnotation => Some(e)

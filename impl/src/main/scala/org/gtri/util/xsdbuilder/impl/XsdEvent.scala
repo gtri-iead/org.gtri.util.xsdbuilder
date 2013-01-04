@@ -29,35 +29,19 @@ case class EndXsdDocumentEvent(locator : ImmutableDiagnosticLocator) extends Xsd
   }
 }
 
-case class StartXsdEvent[E <: XsdObject](item : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+case class StartXsdEvent(item : XsdObject, locator : ImmutableDiagnosticLocator) extends XsdEvent {
   def pushTo(contract : XsdContract) = item.pushTo(contract)
 }
 object StartXsdEvent {
-  def parse[E <: XsdObject](item : XmlElement, locator : ImmutableDiagnosticLocator)(implicit util : XsdObjectUtil[E]) : Box[StartXsdEvent[E]] = {
-    for(inner <- util.parse(item))
-    yield for(e <- inner)
-    yield StartXsdEvent[E](e, locator)
-  }
-  def parse[E <: XsdObject](event : api.XsdEvent)(implicit util : XsdObjectUtil[E]) : Option[StartXsdEvent[E]] = {
-    event match {
-      case StartXsdEvent(item, locator) =>
-        util.downcast(item).map { e => StartXsdEvent(e, locator) }
-      case _ => None
-    }
+  def parse[E <: XsdObject](e : XmlElement, locator : ImmutableDiagnosticLocator, util : XsdObjectUtil[E]) : Box[StartXsdEvent] = {
+    for(inner <- util.parse(e))
+    yield for(item <- inner)
+    yield StartXsdEvent(item, locator)
   }
 }
 
-case class EndXsdEvent[E <: XsdObject](item : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+case class EndXsdEvent(item : XsdObject, locator : ImmutableDiagnosticLocator) extends XsdEvent {
   def pushTo(contract : XsdContract) = contract.endXsdElement()
-}
-object EndXsdEvent {
-  def parse[E <: XsdObject](event : api.XsdEvent)(implicit util : XsdObjectUtil[E]) : Option[StartXsdEvent[E]] = {
-    event match {
-      case EndXsdEvent(item, locator) =>
-        util.downcast(item).map { e => StartXsdEvent(e, locator) }
-      case _ => None
-    }
-  }
 }
 
 case class AddXsdXmlLexicalEvent(xmlEvent : XmlEvent, locator : ImmutableDiagnosticLocator) extends XsdEvent {

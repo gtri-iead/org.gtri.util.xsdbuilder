@@ -71,7 +71,7 @@ object XsdDocumentation {
     }
 
 
-    def allowedChildElements(children: Seq[XsdQName]) = Seq.empty
+    def allowedChildElements(children: Seq[XsdObjectUtil[XsdObject]]) = Seq.empty
 
     def downcast(element: XsdObject) : Option[XsdDocumentation] = element match {
       case e : XsdDocumentation => Some(e)

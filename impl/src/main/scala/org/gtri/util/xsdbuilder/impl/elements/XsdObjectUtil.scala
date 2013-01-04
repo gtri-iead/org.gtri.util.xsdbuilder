@@ -15,14 +15,6 @@ import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator
 trait XsdObjectUtil[+E <: XsdObject] {
   def qName : XsdQName
   def parse(e : XmlElement) : Box[E]
-  def allowedChildElements(children: Seq[XsdQName]) : Seq[XsdQName]
+  def allowedChildElements(children: Seq[XsdObjectUtil[XsdObject]]) : Seq[XsdObjectUtil[XsdObject]]
   def downcast(o : XsdObject) : Option[E]
-}
-object XsdObjectUtil {
-  val qNameToUtilMap : Map[XsdQName, XsdObjectUtil[XsdObject]] = Map(
-    XsdSchema.util.qName -> XsdSchema.util,
-    XsdAnnotation.util.qName -> XsdAnnotation.util,
-    XsdDocumentation.util.qName -> XsdDocumentation.util,
-    XsdAppInfo.util.qName -> XsdAppInfo.util
-  )
 }

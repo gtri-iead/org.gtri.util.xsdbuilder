@@ -20,12 +20,11 @@
 
 */package org.gtri.util.xsdbuilder.impl
 
-import org.gtri.util.xmlbuilder.api.XmlFactory.XMLStreamReaderFactory
 import org.gtri.util.iteratee.api._
-import org.gtri.util.xmlbuilder.api.XmlEvent
-import org.gtri.util.xsdbuilder.api
-import org.gtri.util.xmlbuilder.impl.XmlReader
 import org.gtri.util.iteratee.IterateeFactory
+import org.gtri.util.xmlbuilder.api.XmlFactory.XMLStreamReaderFactory
+import org.gtri.util.xmlbuilder.impl.XmlReader
+import org.gtri.util.xsdbuilder.api
 
 
 /**

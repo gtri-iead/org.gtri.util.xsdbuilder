@@ -131,8 +131,8 @@ object XsdSchema {
     }
 
 
-    def allowedChildElements(children: Seq[XsdQName]) = {
-      Seq(XsdAnnotation.util.qName)
+    def allowedChildElements(children: Seq[XsdObjectUtil[XsdObject]]) = {
+      Seq(XsdAnnotation.util)
     }
 
     def downcast(element: XsdObject) : Option[XsdSchema] = element match {
