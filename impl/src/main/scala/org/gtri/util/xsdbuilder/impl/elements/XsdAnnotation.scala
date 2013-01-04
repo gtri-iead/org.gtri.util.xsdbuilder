@@ -10,6 +10,7 @@ import org.gtri.util.xsdbuilder.impl.GuavaConversions._
 import org.gtri.util.xmlbuilder.impl.XmlElement
 import scalaz._
 import Scalaz._
+import org.gtri.util.xsdbuilder.impl.elements.XsdObject.Metadata
 
 /**
  * Created with IntelliJ IDEA.
@@ -20,24 +21,15 @@ import Scalaz._
  */
 case class XsdAnnotation(
   id : Option[XsdId] = None,
-  prefixes : Seq[(XsdNCName, XsdAnyURI)]
-) extends XsdElement {
+  metadata : Option[Metadata] = None
+) extends XsdObject {
 
-  def attributeOrder = None
+  def qName = XsdAnnotation.util.qName
 
-  def buildAttributes = {
+  def value = None
+
+  def toAttributes = {
     id.map({ id => (XsdConstants.ATTRIBUTES.SOURCE.QNAME,id.toString)}).toList
-  }
-
-  def defaultAttributeOrder = XsdAnnotation.util.defaultAttributeOrder
-
-  def toXmlElement : XmlElement = {
-    XmlElement(
-      qName = XsdConstants.ELEMENTS.ANNOTATION.QNAME,
-      value = None,
-      attributes = attributes,
-      prefixes = prefixes
-    )
   }
 
   def pushTo(contract: XsdContract) {
@@ -51,16 +43,12 @@ case class XsdAnnotation(
 
 object XsdAnnotation {
 
-  implicit object util extends XsdElementCompanionObject[XsdAnnotation] {
+  implicit object util extends XsdObjectUtil[XsdAnnotation] {
 
     def qName = ELEMENTS.ANNOTATION.QNAME
 
-    val DEFAULT_ATTRIBUTE_ORDER : Seq[XsdQName] = Seq(ATTRIBUTES.ID.QNAME)
-
-    def defaultAttributeOrder = DEFAULT_ATTRIBUTE_ORDER
-
-    def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdAnnotation] = {
-      if (element.qName == ELEMENTS.ANNOTATION.QNAME) {
+    def parse(element: XmlElement) : Box[XsdAnnotation] = {
+      if (element.qName == qName) {
         val boxId = parseOptionalAttribute(element, ATTRIBUTES.ID.QNAME, XsdId.parseString)
         for(
           innerId <- boxId
@@ -69,7 +57,7 @@ object XsdAnnotation {
         ) yield
             XsdAnnotation(
               id = id,
-              prefixes = element.prefixes
+              metadata = Some(Metadata(element))
             )
       } else {
         Box.empty
@@ -77,8 +65,9 @@ object XsdAnnotation {
     }
 
 
-  //  def childElements = List(XsdDocumentation)
-    def downcast(element: XsdElement) : Option[XsdAnnotation] = element match {
+    def allowedChildElements(children: Seq[XsdQName]) = Seq(XsdDocumentation.util.qName)
+
+    def downcast(element: XsdObject) : Option[XsdAnnotation] = element match {
       case e : XsdAnnotation => Some(e)
       case _ => None
     }

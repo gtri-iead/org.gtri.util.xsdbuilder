@@ -10,6 +10,7 @@ import scalaz._
 import Scalaz._
 import org.gtri.util.xsdbuilder.api.{XsdContract, XsdConstants}
 import org.gtri.util.xsdbuilder.impl.GuavaConversions._
+import org.gtri.util.xsdbuilder.impl.elements.XsdObject.Metadata
 
 /**
  * Created with IntelliJ IDEA.
@@ -22,24 +23,14 @@ case class XsdDocumentation(
     source : Option[XsdAnyURI] = None,
     xml_lang : Option[XsdToken] = None,
     value : Option[String] = None,
-    attributeOrder : Option[Seq[XsdQName]],
-    prefixes : Seq[(XsdNCName, XsdAnyURI)]
-  ) extends XsdElement {
+    metadata : Option[Metadata] = None
+  ) extends XsdObject {
 
-  def buildAttributes = {
+  def qName = XsdDocumentation.util.qName
+
+  def toAttributes = {
     source.map({ source => (XsdConstants.ATTRIBUTES.SOURCE.QNAME,source.toString)}).toList :::
     xml_lang.map({ xml_lang => (XsdConstants.ATTRIBUTES.XML_LANG.QNAME,xml_lang.toString)}).toList
-  }
-
-  def defaultAttributeOrder = XsdDocumentation.util.defaultAttributeOrder
-
-  def toXmlElement : XmlElement = {
-    XmlElement(
-      qName = XsdConstants.ELEMENTS.DOCUMENTATION.QNAME,
-      value = value,
-      attributes = attributes,
-      prefixes = prefixes
-    )
   }
 
   def pushTo(contract: XsdContract) {
@@ -53,21 +44,12 @@ case class XsdDocumentation(
 }
 
 object XsdDocumentation {
-  implicit object util extends XsdElementCompanionObject[XsdDocumentation] {
+  implicit object util extends XsdObjectUtil[XsdDocumentation] {
 
     def qName = XsdConstants.ELEMENTS.DOCUMENTATION.QNAME
 
-
-    val DEFAULT_ATTRIBUTE_ORDER = Seq(
-      ATTRIBUTES.SOURCE.QNAME,
-      ATTRIBUTES.VALUE.QNAME,
-      ATTRIBUTES.XML_LANG.QNAME
-    )
-
-    def defaultAttributeOrder = DEFAULT_ATTRIBUTE_ORDER
-
-    def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdDocumentation] = {
-      if(element.qName == ELEMENTS.DOCUMENTATION.QNAME) {
+    def parse(element: XmlElement) : Box[XsdDocumentation] = {
+      if(element.qName == qName) {
         val boxSource = parseOptionalAttribute(element, ATTRIBUTES.SOURCE.QNAME, XsdAnyURI.parseString)
         val boxXmlLang = parseOptionalAttribute(element, ATTRIBUTES.XML_LANG.QNAME, XsdToken.parseString)
         for(
@@ -81,17 +63,17 @@ object XsdDocumentation {
             source = source,
             xml_lang = xml_lang,
             value = element.value,
-            attributeOrder = Some(element.attributes.map { _._1 }),
-            prefixes = element.prefixes
+            metadata = Some(Metadata(element))
           )
       } else {
         Box.empty
       }
     }
 
-    //  def childElements = Nil
-    
-    def downcast(element: XsdElement) : Option[XsdDocumentation] = element match {
+
+    def allowedChildElements(children: Seq[XsdQName]) = Seq.empty
+
+    def downcast(element: XsdObject) : Option[XsdDocumentation] = element match {
       case e : XsdDocumentation => Some(e)
       case _ => None
     }

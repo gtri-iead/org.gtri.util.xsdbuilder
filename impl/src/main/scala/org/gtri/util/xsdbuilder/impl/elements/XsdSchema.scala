@@ -2,8 +2,7 @@ package org.gtri.util.xsdbuilder.impl.elements
 
 import org.gtri.util.xsddatatypes._
 import org.gtri.util.xsdbuilder.api.XsdContract.{FinalDefaultCode, BlockDefaultCode, AllOrNoneCode, FormChoiceCode}
-import org.gtri.util.xmlbuilder.impl.XmlElement
-import org.gtri.util.iteratee.api.{IssueHandlingCode, ImmutableDiagnosticLocator}
+import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator
 import org.gtri.util.iteratee.impl.box._
 import org.gtri.util.xsdbuilder.impl.XmlParser._
 import org.gtri.util.xsdbuilder.api.XsdConstants.{ELEMENTS, ATTRIBUTES}
@@ -11,9 +10,8 @@ import org.gtri.util.xsdbuilder.api.{ XsdContract, XsdConstants}
 import scalaz._
 import scalaz.Scalaz._
 import org.gtri.util.xsdbuilder.impl.GuavaConversions._
-import org.gtri.util.xsdbuilder.impl.XsdEvent
-import org.gtri.util.xsdbuilder.api
 import org.gtri.util.xmlbuilder.impl.XmlElement
+import org.gtri.util.xsdbuilder.impl.elements.XsdObject.Metadata
 
 /**
  * Created with IntelliJ IDEA.
@@ -31,13 +29,11 @@ case class XsdSchema(
   blockDefaultCodes : Option[Either[AllOrNoneCode, Set[BlockDefaultCode]]] = None,
   finalDefaultCodes : Option[Either[AllOrNoneCode, Set[FinalDefaultCode]]] = None,
   xml_lang : Option[XsdToken] = None,
-  attributeOrder : Option[Seq[XsdQName]],
-  prefixes : Seq[(XsdNCName, XsdAnyURI)]
-) extends XsdElement {
-
-  def defaultAttributeOrder = XsdSchema.util.defaultAttributeOrder
-
-  def buildAttributes = {
+  metadata : Option[Metadata] = None
+) extends XsdObject {
+  def qName = XsdSchema.util.qName
+  def value = None
+  def toAttributes = {
     id.map({ id => ATTRIBUTES.ID.QNAME -> id.toString}).toList :::
     List(ATTRIBUTES.VERSION.QNAME -> version.toString) :::
     List(ATTRIBUTES.TARGETNAMESPACE.QNAME -> targetNamespace.toString) :::
@@ -46,15 +42,6 @@ case class XsdSchema(
     blockDefaultCodes.map({ blockDefaultCodes => ATTRIBUTES.BLOCKDEFAULT.QNAME -> blockDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
     finalDefaultCodes.map({ finalDefaultCodes => ATTRIBUTES.FINALDEFAULT.QNAME -> finalDefaultCodes.fold({ _.toString },{ _.mkString(" ") })}).toList :::
     xml_lang.map({ xml_lang => ATTRIBUTES.XML_LANG.QNAME -> xml_lang.toString}).toList
-  }
-
-  def toXmlElement : XmlElement = {
-    XmlElement(
-      qName = XsdConstants.ELEMENTS.SCHEMA.QNAME,
-      value = None,
-      attributes = attributes,
-      prefixes = prefixes
-    )
   }
 
   def pushTo(contract: XsdContract) {
@@ -80,21 +67,8 @@ case class XsdSchema(
 
 object XsdSchema {
 
-  implicit object util extends XsdElementCompanionObject[XsdSchema] {
+  implicit object util extends XsdObjectUtil[XsdSchema] {
     def qName = ELEMENTS.SCHEMA.QNAME
-
-    val DEFAULT_ATTRIBUTE_ORDERING = Seq(
-      ATTRIBUTES.ATTRIBUTEFORMDEFAULT.QNAME,
-      ATTRIBUTES.BLOCKDEFAULT.QNAME,
-      ATTRIBUTES.ELEMENTFORMDEFAULT.QNAME,
-      ATTRIBUTES.FINALDEFAULT.QNAME,
-      ATTRIBUTES.ID.QNAME,
-      ATTRIBUTES.TARGETNAMESPACE.QNAME,
-      ATTRIBUTES.VERSION.QNAME,
-      ATTRIBUTES.XML_LANG.QNAME
-    )
-
-    def defaultAttributeOrder = DEFAULT_ATTRIBUTE_ORDERING
 
     def randomString = java.lang.Long.toHexString(java.lang.Double.doubleToLongBits(java.lang.Math.random()))
     def genRandomURN = new XsdAnyURI(new StringBuilder().append("urn:").append(randomString).append(":").append(randomString).toString())
@@ -111,7 +85,7 @@ object XsdSchema {
       }
     }
 
-    def parse(element: XmlElement, locator : ImmutableDiagnosticLocator) : Box[XsdSchema] = {
+    def parse(element: XmlElement) : Box[XsdSchema] = {
       if(element.qName == ELEMENTS.SCHEMA.QNAME) {
         val boxId = parseOptionalAttribute(element, ATTRIBUTES.ID.QNAME, XsdId.parseString)
         val boxTargetNamespace = parseRequiredAttribute(element, ATTRIBUTES.TARGETNAMESPACE.QNAME,XsdAnyURI.parseString, genRandomURN)
@@ -149,16 +123,19 @@ object XsdSchema {
               blockDefaultCodes = blockDefaultCodes,
               finalDefaultCodes = finalDefaultCodes,
               xml_lang = xml_lang,
-              attributeOrder = Some(element.attributes.map { _._1 }),
-              prefixes = element.prefixes
+              metadata = Some(Metadata(element))
             )
       } else {
         Box.empty
       }
     }
 
-  //  def childElements = List(XsdAnnotation)
-    def downcast(element: XsdElement) : Option[XsdSchema] = element match {
+
+    def allowedChildElements(children: Seq[XsdQName]) = {
+      Seq(XsdAnnotation.util.qName)
+    }
+
+    def downcast(element: XsdObject) : Option[XsdSchema] = element match {
       case e : XsdSchema => Some(e)
       case _ => None
     }

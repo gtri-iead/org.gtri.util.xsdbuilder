@@ -1,10 +1,10 @@
 package org.gtri.util.xsdbuilder.impl
 
-import elements.{XsdElementCompanionObject, XsdElement}
+import elements.{XsdObjectUtil, XsdObject}
 import org.gtri.util.xsdbuilder.api
 import api.XsdContract
 import org.gtri.util.iteratee.api.ImmutableDiagnosticLocator
-import org.gtri.util.xmlbuilder.impl.{XmlElement, AddXmlElementEvent}
+import org.gtri.util.xmlbuilder.impl.{XmlElement, StartXmlElementEvent}
 import org.gtri.util.iteratee.impl.box._
 import org.gtri.util.xmlbuilder.api.XmlEvent
 import scalaz._
@@ -29,37 +29,37 @@ case class EndXsdDocumentEvent(locator : ImmutableDiagnosticLocator) extends Xsd
   }
 }
 
-case class AddXsdEvent[E <: XsdElement](element : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
-  def pushTo(contract : XsdContract) = element.pushTo(contract)
+case class StartXsdEvent[E <: XsdObject](item : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+  def pushTo(contract : XsdContract) = item.pushTo(contract)
 }
-object AddXsdEvent {
-  def parse[E <: XsdElement](element : XmlElement, locator : ImmutableDiagnosticLocator)(implicit util : XsdElementCompanionObject[E]) : Box[AddXsdEvent[E]] = {
-    for(inner <- util.parse(element, locator))
+object StartXsdEvent {
+  def parse[E <: XsdObject](item : XmlElement, locator : ImmutableDiagnosticLocator)(implicit util : XsdObjectUtil[E]) : Box[StartXsdEvent[E]] = {
+    for(inner <- util.parse(item))
     yield for(e <- inner)
-    yield AddXsdEvent[E](e, locator)
+    yield StartXsdEvent[E](e, locator)
   }
-  def parse[E <: XsdElement](event : api.XsdEvent)(implicit util : XsdElementCompanionObject[E]) : Option[AddXsdEvent[E]] = {
+  def parse[E <: XsdObject](event : api.XsdEvent)(implicit util : XsdObjectUtil[E]) : Option[StartXsdEvent[E]] = {
     event match {
-      case AddXsdEvent(element, locator) =>
-        util.downcast(element).map { e => AddXsdEvent(e, locator) }
+      case StartXsdEvent(item, locator) =>
+        util.downcast(item).map { e => StartXsdEvent(e, locator) }
       case _ => None
     }
   }
 }
 
-case class EndXsdEvent[E <: XsdElement](element : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+case class EndXsdEvent[E <: XsdObject](item : E, locator : ImmutableDiagnosticLocator) extends XsdEvent {
   def pushTo(contract : XsdContract) = contract.endXsdElement()
 }
 object EndXsdEvent {
-  def parse[E <: XsdElement](event : api.XsdEvent)(implicit util : XsdElementCompanionObject[E]) : Option[AddXsdEvent[E]] = {
+  def parse[E <: XsdObject](event : api.XsdEvent)(implicit util : XsdObjectUtil[E]) : Option[StartXsdEvent[E]] = {
     event match {
-      case EndXsdEvent(element, locator) =>
-        util.downcast(element).map { e => AddXsdEvent(e, locator) }
+      case EndXsdEvent(item, locator) =>
+        util.downcast(item).map { e => StartXsdEvent(e, locator) }
       case _ => None
     }
   }
 }
 
-case class AddXsdCommentEvent(comment : String, locator : ImmutableDiagnosticLocator) extends XsdEvent {
-  def pushTo(contract : XsdContract) = contract.addXmlComment(comment)
+case class AddXsdXmlLexicalEvent(xmlEvent : XmlEvent, locator : ImmutableDiagnosticLocator) extends XsdEvent {
+  def pushTo(contract : XsdContract) = xmlEvent.pushTo(contract)
 }
